@@ -8,4 +8,14 @@ interface AuthUserInterface
    */
   public function getIdUser();
 
+  /**
+   * @return string
+   */
+  public function retrieveRememberToken();
+
+  /**
+   * @param $remember_token
+   */
+  public function storeRememberToken($remember_token);
+
 }

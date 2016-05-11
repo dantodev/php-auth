@@ -1,60 +1,160 @@
 <?php namespace Dtkahl\AuthTest;
 
 use Dtkahl\Auth\Auth;
-use Dtkahl\Auth\Driver\CustomAuthDriver;
+use Dtkahl\Auth\AuthMiddleware;
+use Interop\Container\ContainerInterface;
+use Slim\App;
+use Slim\Http\Cookies;
+use Slim\Http\Headers;
+use Slim\Http\Request;
+use Slim\Http\Response;
+use Slim\Http\Stream;
+use Slim\Http\Uri;
 
 class AuthTest extends \PHPUnit_Framework_TestCase
 {
 
-  private $session_token;
-
-  /**
-   * @var TestUser[]
-   */
+  /** @var TestUser[] */
   private $users = [];
 
-  public function test()
-  {
-    $app_salt = Auth::random_salt();
+  /** @var App $app */
+  private $app;
 
-    $auth = new Auth(CustomAuthDriver::class, [
-        "handleLogin" => function (Auth $auth, $email, $hash) {
-          if ($email == "test@test.com" && $hash == Auth::hash("test1234", $auth->getAppSalt())) {
+  /** @var AuthMiddleware $middleware */
+  private $middleware;
+
+  private $salt = "usB05FJc.U9VLtYhZInebp";
+
+  public function setUp()
+  {
+    $this->app = new App();
+    $container = $this->app->getContainer();
+    $salt = $this->salt;
+
+    /*
+     * set container
+     */
+
+    $container['request'] = function () {
+      $headers = new Headers();
+      return new Request(
+          'GET',
+          new Uri('http', '127.0.0.1'),
+          $headers,
+          ["session_token"=>"1234"],
+          [],
+          new Stream(fopen("php://temp/", "r+"))
+      );
+    };
+
+    $container['response'] = function () {
+      return  new Response();
+    };
+
+    $container['cookies'] = function (ContainerInterface $c) {
+      /** @var Request $request */
+      $request = $c->get('request');
+      return new Cookies($request->getCookieParams());
+    };
+
+    $container['auth'] = function () {
+      return new Auth();
+    };
+
+    /*
+     * configure middleware
+     */
+
+    $this->middleware = new AuthMiddleware([
+        "salt" => $salt,
+        "handleLogin" => function ($email, $hash) use ($salt) {
+          if ($email == "test@test.com" && $hash == Auth::hash("test1234", $salt)) {
             return $this->users[] = new TestUser();
           }
           return null;
         },
-        "storeSession" => function (Auth $auth, $session_token, $remember_token, $remember) {
-          $this->session_token = $session_token;
-          $auth->getUser()->setRememberToken($remember_token);
-          return true;
-        },
-        "retrieveSessionToken" => function (Auth $auth) {
-          return $this->session_token;
-        },
-        "retrieveUser" => function (Auth $auth, $remember_token) {
+        "retrieveUser" => function ($remember_token) {
           foreach ($this->users as $user) {
-            if ($user->getRememberToken() == $remember_token) {
+            if ($user->retrieveRememberToken() == $remember_token) {
               return $user;
             }
           }
           return null;
-        },
-        "destroySession" => function (Auth $auth) {
-          $auth->getUser()->setRememberToken(null);
-          return true;
         }
-    ], $app_salt);
+    ]);
+  }
 
-    $this->assertFalse($auth->login("wrong@mail.com", "wrongpw"));
-    $this->assertTrue($auth->login("test@test.com", "test1234"));
+  public function testMiddlewareNoValidCookie()
+  {
+    /**
+     * @var Auth $auth
+     * @var Request $request
+     * @var Response $response
+     */
+    $container = $this->app->getContainer();
+    $auth = $container->get("auth");
+    $request = $container->get('request');
+    $response = $container->get('response');
+    $middleware = $this->middleware;
 
+    $middleware($request, $response, $this->app);
+
+    $this->assertNull($auth->getUser());
+    $this->assertFalse($auth->isAuthenticated());
+  }
+
+  public function testMiddlewareValidCookie()
+  {
+    /**
+     * @var Auth $auth
+     * @var Request $request
+     * @var Response $response
+     */
+    $container = $this->app->getContainer();
+    $auth = $container->get("auth");
+    $request = $container->get('request');
+    $response = $container->get('response'); // TODO set valid cookie
+    $middleware = $this->middleware;
+
+    $middleware($request, $response, $this->app);
+
+    $this->assertNull($auth->getUser());
+    $this->assertFalse($auth->isAuthenticated());
+  }
+
+  public function testLoginLogout()
+  {
+    /**
+     * @var Auth $auth
+     * @var Request $request
+     * @var Response $response
+     */
+    $container = $this->app->getContainer();
+    $auth = $container->get("auth");
+    $request = $container->get('request');
+    $response = $container->get('response');
+    $middleware = $this->middleware;
+
+    $middleware($request, $response, $this->app);
+
+    /** @var Response $response */
+    $response = $auth->login($response, "wrong@mail.com", "wrongpw");
+    $this->assertInstanceOf(Response::class, $response);
+    $this->assertEmpty($response->getHeaders());
+    $this->assertNull($auth->getUser());
+    $this->assertFalse($auth->isAuthenticated());
+
+    /** @var Response $response */
+    $response = $auth->login($response, "test@test.com", "test1234");
+    $this->assertInstanceOf(Response::class, $response);
+    $this->assertArrayHasKey("Set-Cookie", $response->getHeaders()); // TODO assert set-cookie value / expire
     $this->assertInstanceOf(TestUser::class, $auth->getUser());
     $this->assertTrue($auth->isAuthenticated());
-    $this->assertTrue($auth->validateSession());
 
-    $this->assertTrue($auth->logout());
-    $this->assertFalse($auth->logout());
+    /** @var Response $response */
+    $response = $auth->logout($response);
+    $this->assertInstanceOf(Response::class, $response);
+    $this->assertArrayHasKey("Set-Cookie", $response->getHeaders()); // TODO assert set-cookie value / expire
     $this->assertNull($auth->getUser());
     $this->assertFalse($auth->isAuthenticated());
   }

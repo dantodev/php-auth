@@ -12,12 +12,12 @@ class TestUser implements AuthUserInterface
     return 1;
   }
 
-  public function setRememberToken($remember_token)
+  public function storeRememberToken($remember_token)
   {
     $this->remember_token = $remember_token;
   }
 
-  public function getRememberToken()
+  public function retrieveRememberToken()
   {
     return $this->remember_token;
   }

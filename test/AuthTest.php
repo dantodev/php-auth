@@ -72,7 +72,6 @@ class AuthTest extends \PHPUnit_Framework_TestCase
         },
         "retrieveUser" => function ($remember_token) {
           foreach ($this->users as $user) {
-//            var_dump($user->retrieveRememberToken(), $remember_token);
             if ($user->retrieveRememberToken() == $remember_token) {
               return $user;
             }
@@ -155,7 +154,6 @@ class AuthTest extends \PHPUnit_Framework_TestCase
     $response = $auth->login($response, "test@test.com", "test1234");
     $this->assertInstanceOf(Response::class, $response);
     $this->assertArrayHasKey("Set-Cookie", $response->getHeaders());
-    var_dump($response->getHeaders());
     $this->assertInstanceOf(TestUser::class, $auth->getUser());
     $this->assertTrue($auth->isAuthenticated());
 

@@ -20,7 +20,6 @@ class Auth
   private $_user = null;
 
   private $_authenticated = false;
-  private $_last_session_token = null;
 
   /**
    * @param Map $options
@@ -53,7 +52,7 @@ class Auth
       $this->_user = $user;
       $this->_authenticated = true;
 
-      $session_token = $this->generateSessionToken($user->getIdUser());
+      $session_token = md5($this->generateSessionToken($user->getIdUser()));
       $remember_token = $this->generateRememberToken($session_token);
 
       $this->getUser()->storeRememberToken($remember_token);
@@ -113,14 +112,6 @@ class Auth
   }
 
   /**
-   * @return string|null
-   */
-  public function getLastSessionToken()
-  {
-    return $this->_last_session_token;
-  }
-
-  /**
    * @return bool
    */
   public function isAuthenticated()
@@ -151,7 +142,7 @@ class Auth
    */
   private function generateRememberToken($session_token)
   {
-    return self::hash(self::getIp() . $session_token, $this->_options->get("salt"));
+    return self::hash(self::getIp() . $session_token, $this->_options->get("salt")); // TODO use IP config (default=true)
   }
 
   /**
@@ -165,7 +156,7 @@ class Auth
     if (!preg_match("/^[a-zA-Z0-9.\\/]{22,}$/", $salt)) {
       throw new \RuntimeException("salt must follow the following condition ^[a-zA-Z0-9.\\/]{22,}$");
     }
-    return crypt ( $string, "\$2a\$08\$$salt" );
+    return crypt($string, '$2a$08$' . $salt);
   }
 
   /**
@@ -177,28 +168,21 @@ class Auth
     return substr(str_shuffle('./0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') , 0, $length);
   }
 
-  private static function getIp() // TODO maybe slim has something shorter? :)
+  private static function getIp()
   {
-    $headers = function_exists('apache_request_headers') ? apache_request_headers() : $_SERVER;
+    $env = function_exists('apache_request_headers') ? apache_request_headers() : $_SERVER;
+    $headers = ['X-Forwarded-For', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'];
 
-    if (
-        array_key_exists('X-Forwarded-For', $headers) &&
-        filter_var($headers['X-Forwarded-For'], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
-    ) {
-      return $headers['X-Forwarded-For'];
-    } elseif (
-        array_key_exists( 'HTTP_X_FORWARDED_FOR', $headers) &&
-        filter_var($headers['HTTP_X_FORWARDED_FOR'], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
-    ) {
-      return $headers['HTTP_X_FORWARDED_FOR'];
-    } else if (
-        array_key_exists( 'REMOTE_ADDR', $headers) &&
-        filter_var($headers['REMOTE_ADDR'], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
-    ) {
-      return $_SERVER['REMOTE_ADDR'];
-    } else {
-      return null;
+    foreach ($headers as $header) {
+      if (validateIP($env, $header)) {
+        return $env[$header];
+      }
     }
+    return null;
   }
 
 }
+
+function validateIP($env, $header) {
+  return array_key_exists($header, $env) && filter_var($env[$header], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4);
+};

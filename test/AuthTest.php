@@ -23,13 +23,10 @@ class AuthTest extends \PHPUnit_Framework_TestCase
   /** @var AuthMiddleware $middleware */
   private $middleware;
 
-  private $salt = "usB05FJc.U9VLtYhZInebp";
-
   public function setUp()
   {
     $this->app = new App();
     $container = $this->app->getContainer();
-    $salt = $this->salt;
 
     /*
      * set container
@@ -41,7 +38,7 @@ class AuthTest extends \PHPUnit_Framework_TestCase
           'GET',
           new Uri('http', '127.0.0.1'),
           $headers,
-          ["session_token"=>"1234"],
+          ["session_token" => 'ba57473e9d0b7199c28772f1309cca72'],
           [],
           new Stream(fopen("php://temp/", "r+"))
       );
@@ -66,15 +63,16 @@ class AuthTest extends \PHPUnit_Framework_TestCase
      */
 
     $this->middleware = new AuthMiddleware([
-        "salt" => $salt,
-        "handleLogin" => function ($email, $hash) use ($salt) {
-          if ($email == "test@test.com" && $hash == Auth::hash("test1234", $salt)) {
+        "salt" => "usB05FJc.U9VLtYhZInebp",
+        "handleLogin" => function ($email, $hash) {
+          if ($email == "test@test.com" && $hash == '$2a$08$usB05FJc.U9VLtYhZInebeTrLQmyV56uwptHW0qBBBuGAydEIRKo.') {
             return $this->users[] = new TestUser();
           }
           return null;
         },
         "retrieveUser" => function ($remember_token) {
           foreach ($this->users as $user) {
+//            var_dump($user->retrieveRememberToken(), $remember_token);
             if ($user->retrieveRememberToken() == $remember_token) {
               return $user;
             }
@@ -101,6 +99,15 @@ class AuthTest extends \PHPUnit_Framework_TestCase
 
     $this->assertNull($auth->getUser());
     $this->assertFalse($auth->isAuthenticated());
+
+    $user = new TestUser();
+    $user->storeRememberToken('$2a$08$usB05FJc.U9VLtYhZInebeAIOh2oJZ/TnMhVoERg6EYw4ApTgvyWu');
+    $this->users[] = $user;
+
+    $auth->validateSession();
+
+    $this->assertInstanceOf(TestUser::class, $auth->getUser());
+    $this->assertTrue($auth->isAuthenticated());
   }
 
   public function testMiddlewareValidCookie()
@@ -113,7 +120,7 @@ class AuthTest extends \PHPUnit_Framework_TestCase
     $container = $this->app->getContainer();
     $auth = $container->get("auth");
     $request = $container->get('request');
-    $response = $container->get('response'); // TODO set valid cookie
+    $response = $container->get('response');
     $middleware = $this->middleware;
 
     $middleware($request, $response, $this->app);
@@ -147,14 +154,15 @@ class AuthTest extends \PHPUnit_Framework_TestCase
     /** @var Response $response */
     $response = $auth->login($response, "test@test.com", "test1234");
     $this->assertInstanceOf(Response::class, $response);
-    $this->assertArrayHasKey("Set-Cookie", $response->getHeaders()); // TODO assert set-cookie value / expire
+    $this->assertArrayHasKey("Set-Cookie", $response->getHeaders());
+    var_dump($response->getHeaders());
     $this->assertInstanceOf(TestUser::class, $auth->getUser());
     $this->assertTrue($auth->isAuthenticated());
 
     /** @var Response $response */
     $response = $auth->logout($response);
     $this->assertInstanceOf(Response::class, $response);
-    $this->assertArrayHasKey("Set-Cookie", $response->getHeaders()); // TODO assert set-cookie value / expire
+    $this->assertArrayHasKey("Set-Cookie", $response->getHeaders());
     $this->assertNull($auth->getUser());
     $this->assertFalse($auth->isAuthenticated());
   }

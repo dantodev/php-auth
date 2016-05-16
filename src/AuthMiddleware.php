@@ -10,11 +10,20 @@ class AuthMiddleware {
   /** @var Map */
   private $_options;
 
+  /**
+   * @param array $options
+   */
   public function __construct(array $options = [])
   {
     $this->_options = new Map($options);
   }
 
+  /**
+   * @param Request $request
+   * @param Response $response
+   * @param App $app
+   * @return Response
+   */
   public function __invoke(Request $request, Response $response, App $app)
   {
     /**

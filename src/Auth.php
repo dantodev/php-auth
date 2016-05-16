@@ -182,6 +182,9 @@ class Auth
     return substr(str_shuffle('./0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') , 0, $length);
   }
 
+  /**
+   * @return string|null
+   */
   private static function getIp()
   {
     $env = function_exists('apache_request_headers') ? apache_request_headers() : $_SERVER;
@@ -197,6 +200,11 @@ class Auth
 
 }
 
+/**
+ * @param $env
+ * @param $header
+ * @return bool
+ */
 function validateIP($env, $header) {
   return array_key_exists($header, $env) && filter_var($env[$header], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4);
 };

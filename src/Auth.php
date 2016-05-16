@@ -42,7 +42,7 @@ class Auth
    * @param string $email
    * @param string $password
    * @param bool $remember
-   * @return bool
+   * @return Response
    */
   public function login(Response $response, $email, $password, $remember = false)
   {

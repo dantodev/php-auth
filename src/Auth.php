@@ -25,10 +25,16 @@ class Auth
    * @param Map $options
    * @param ContainerInterface $container
    */
-  public function configure(Map $options, ContainerInterface $container) {
+  public function configure(Map $options, ContainerInterface $container)
+  {
+    $require = ["salt", "handleLogin", "retrieveUser"];
+    if (!$options->hasKeys($require)) {
+      throw new \RuntimeException(sprintf("Auth Middleware require '%s' options.", implode("', '", $require)));
+    }
+
     $this->_options   = $options;
     $this->_container = $container;
-    $this->_cookies   = $container->get($options->get("cookies_container"));
+    $this->_cookies   = $container->get($options->get("cookies_container", "cookies"));
   }
 
   /**
@@ -54,12 +60,16 @@ class Auth
 
       $session_token = md5($this->generateSessionToken($user->getIdUser()));
       $remember_token = $this->generateRememberToken($session_token);
-
       $this->getUser()->storeRememberToken($remember_token);
-      if ($remember) {
-        // TODO implement $remember
-      }
-      $this->_cookies->set('session_token', $session_token); // TODO config
+
+      $cookie = $this->_options->get("default_cookie", []);
+      $lifetime = $remember ?
+          $this->_options->get('lifetime_remember', 2592000) :
+          $this->_options->get('lifetime', 21600);
+      $cookie["expires"] = time() + $lifetime;
+      $cookie["value"] = $session_token;
+
+      $this->_cookies->set('session_token', $cookie);
       return $response->withHeader('Set-Cookie', $this->_cookies->toHeaders());
     }
 
@@ -142,7 +152,11 @@ class Auth
    */
   private function generateRememberToken($session_token)
   {
-    return self::hash(self::getIp() . $session_token, $this->_options->get("salt")); // TODO use IP config (default=true)
+    if ($this->_options->get('use_ip', true)) {
+      return self::hash(self::getIp() . $session_token, $this->_options->get("salt"));
+    } else {
+      return self::hash($session_token, $this->_options->get("salt"));
+    }
   }
 
   /**

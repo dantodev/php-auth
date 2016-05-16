@@ -7,20 +7,12 @@ use Slim\Http\Response;
 
 class AuthMiddleware {
 
+  /** @var Map */
   private $_options;
 
   public function __construct(array $options = [])
   {
-    $this->_options = new Map([
-      'auth_container' => "auth",
-      'cookies_container' => "cookies",
-    ]);
-    $this->_options->merge($options);
-
-    $require = ["salt", "handleLogin", "retrieveUser"];
-    if (!$this->_options->hasKeys($require)) {
-      throw new \RuntimeException(sprintf("Auth Middleware require '%s' options.", implode("', '", $require)));
-    }
+    $this->_options = new Map($options);
   }
 
   public function __invoke(Request $request, Response $response, App $app)
@@ -29,7 +21,7 @@ class AuthMiddleware {
      * @var Auth $auth
      */
     $container      = $app->getContainer();
-    $auth           = $container->get($this->_options->get("auth_container"));
+    $auth           = $container->get($this->_options->get("auth_container", "auth"));
 
     $auth->configure($this->_options, $container);
     $auth->validateSession();

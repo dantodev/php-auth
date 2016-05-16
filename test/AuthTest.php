@@ -63,13 +63,16 @@ class AuthTest extends \PHPUnit_Framework_TestCase
      */
 
     $this->middleware = new AuthMiddleware([
+
         "salt" => "usB05FJc.U9VLtYhZInebp",
+
         "handleLogin" => function ($email, $hash) {
           if ($email == "test@test.com" && $hash == '$2a$08$usB05FJc.U9VLtYhZInebeTrLQmyV56uwptHW0qBBBuGAydEIRKo.') {
             return $this->users[] = new TestUser();
           }
           return null;
         },
+
         "retrieveUser" => function ($remember_token) {
           foreach ($this->users as $user) {
             if ($user->retrieveRememberToken() == $remember_token) {

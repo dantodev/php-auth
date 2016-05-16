@@ -62,7 +62,7 @@ class AuthTest extends \PHPUnit_Framework_TestCase
      * configure middleware
      */
 
-    $this->middleware = new AuthMiddleware([
+    $this->middleware = new AuthMiddleware($container, [
 
         "salt" => "usB05FJc.U9VLtYhZInebp",
 

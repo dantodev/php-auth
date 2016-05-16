@@ -22,10 +22,10 @@ class Auth
   private $_authenticated = false;
 
   /**
-   * @param Map $options
    * @param ContainerInterface $container
+   * @param Map $options
    */
-  public function configure(Map $options, ContainerInterface $container)
+  public function configure(ContainerInterface $container, Map $options)
   {
     $require = ["salt", "handleLogin", "retrieveUser"];
     if (!$options->hasKeys($require)) {

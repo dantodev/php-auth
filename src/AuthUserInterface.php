@@ -18,4 +18,6 @@ interface AuthUserInterface
      */
     public function storeRememberToken($remember_token);
 
+    // TODO add handleLogin etc
+
 }

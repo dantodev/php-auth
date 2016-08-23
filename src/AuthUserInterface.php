@@ -20,14 +20,4 @@ interface AuthUserInterface
 
     // TODO add handleLogin etc
 
-  /**
-   * @return string
-   */
-  public function retrieveRememberToken();
-
-  /**
-   * @param $remember_token
-   */
-  public function storeRememberToken($remember_token);
-
 }

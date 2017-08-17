@@ -1,3 +1,1 @@
-# PHP auth
-
-*TBA*
+**Abandoned**
